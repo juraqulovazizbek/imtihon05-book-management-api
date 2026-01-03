@@ -7,7 +7,6 @@ from sqlalchemy import (
     Float,
     DateTime,
 )
-from sqlalchemy.orm import relationship
 class Book(Base):
     __tablename__ = "books" 
 
