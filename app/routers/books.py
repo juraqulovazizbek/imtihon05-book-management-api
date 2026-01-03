@@ -10,7 +10,7 @@ from app import schemas
 router = APIRouter(prefix="/books",tags=["Books"])
 
 
-@router.get("/search", response_model=List[schemas.BookResponse])
+@router.get("/search", status_code=status.HTTP_200_OK, response_model=List[schemas.BookResponse])
 def search_books(search: str, db: Session = Depends(get_db)):
     books = db.query(models.Book).filter(
         models.Book.title.ilike(f"%{search}%") |
@@ -23,7 +23,7 @@ def search_books(search: str, db: Session = Depends(get_db)):
     return books
 
 
-@router.get("/filter", response_model=List[schemas.BookResponse])
+@router.get("/filter", status_code=status.HTTP_200_OK, response_model=List[schemas.BookResponse])
 def filter_books(
     min_year: int = Query(0, ge=0),
     max_year: int | None = Query(None, ge=0),
