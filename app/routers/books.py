@@ -1,24 +1,53 @@
-from fastapi import APIRouter, HTTPException,status, Depends
+from fastapi import APIRouter, HTTPException,status, Query, Depends
 from sqlalchemy.orm import Session
 from typing import List
 
-from app import models, database
+from app import models
+from app.dependencies import get_db
 from ..schemas import BookCreate, BookUpdate, BookResponse
 from app import schemas
-router = APIRouter(
-    prefix="/books",
-    tags=["Books"]
-)
 
-# DB sessionni olish uchun
-def get_db():
-    db = database.SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+router = APIRouter(prefix="/books",tags=["Books"])
 
-# CREATE – yangi kitob qo‘shish
+
+@router.get("/search", response_model=List[schemas.BookResponse])
+def search_books(search: str, db: Session = Depends(get_db)):
+    books = db.query(models.Book).filter(
+        models.Book.title.ilike(f"%{search}%") |
+        models.Book.author.ilike(f"%{search}%")
+    ).all()
+
+    if not books:
+        raise HTTPException(status_code=404,detail="No books found matching your search")
+
+    return books
+
+
+@router.get("/filter", response_model=List[schemas.BookResponse])
+def filter_books(
+    min_year: int = Query(0, ge=0),
+    max_year: int | None = Query(None, ge=0),
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.Book)
+
+    if min_year:
+        query = query.filter(models.Book.year >= min_year)
+
+    if max_year:
+        query = query.filter(models.Book.year <= max_year)
+
+    books = query.all()
+
+    if not books:
+        raise HTTPException(
+            status_code=404,
+            detail="No books found with given filters"
+        )
+
+    return books
+
+
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=BookResponse)
 def create_book(book: BookCreate, db: Session = Depends(get_db)):
     new_book = models.Book(**book.dict())
@@ -27,13 +56,13 @@ def create_book(book: BookCreate, db: Session = Depends(get_db)):
     db.refresh(new_book)
     return new_book
 
-# READ – barcha kitoblar
+
 @router.get("/", status_code=status.HTTP_200_OK, response_model=List[BookResponse])
 def get_books(db: Session = Depends(get_db)):
     books = db.query(models.Book).all()
     return books
 
-# READ – ID bo‘yicha kitob
+
 @router.get("/{book_id}", status_code=status.HTTP_200_OK, response_model=BookResponse)
 def get_book(book_id: int, db: Session = Depends(get_db)):
     book = db.query(models.Book).filter(models.Book.id == book_id).first()
@@ -41,7 +70,7 @@ def get_book(book_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Book not found")
     return book
 
-# UPDATE – kitobni yangilash
+
 @router.put("/{book_id}", status_code=status.HTTP_200_OK, response_model=BookResponse)
 def update_book(book_id: int, book_data: BookUpdate, db: Session = Depends(get_db)):
     book = db.query(models.Book).filter(models.Book.id == book_id).first()
@@ -55,7 +84,7 @@ def update_book(book_id: int, book_data: BookUpdate, db: Session = Depends(get_d
     db.refresh(book)
     return book
 
-# DELETE – kitobni o‘chirish
+
 @router.delete("/{book_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_book(book_id: int, db: Session = Depends(get_db)):
     book = db.query(models.Book).filter(models.Book.id == book_id).first()
