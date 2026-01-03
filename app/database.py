@@ -12,6 +12,7 @@ DATABASE_URL = URL.create(
     password=settings.db_pass,
     database=settings.db_name,
 )
+
 engine = create_engine(url=DATABASE_URL)
 Base = declarative_base()
 SessionLocal = sessionmaker(bind=engine)
